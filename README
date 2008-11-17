@@ -5,7 +5,14 @@ on suositeltavaa, että käyttäjä käyttää tunnistuksessa ssh-avainta.
 Avaimen luonti:
 ssh-keygen
 <ei salasanaa, kun sellaista kysytään>
-scp .ssh/id_xxx.pub user@niksula:.
+ssh-copy-id user@niksula
 
-niksulassa:
-cat id_xxx.pub >> .ssh/authorized_keys2
+Jos ssh-copy-id jostain syystä puuttuu, voit ajaa seuraavat komennot käsin:
+
+omalla koneella
+
+$ scp .ssh/id_xxx.pub user@niksula:.
+
+niksulassa
+
+$ cat id_xxx.pub >> .ssh/authorized_keys2
