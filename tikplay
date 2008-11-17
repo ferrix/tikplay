@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# USAGE: tikplay file
+# Works with *.mp3, *.m4a and *.ogg
+
+# With aac files uses ENCODER machine to encode the file to vorbis before
+# sending it to tikradio. Please use some other machine (though inside niksula)
+# for encoding so we don't kill the poor animal.
+
+# dependencies (local machine):
+# - mplayer
+# - bash
+
+# dependencies (encoder machine):
+# - oggenc
+# - nc
+
+# EDIT THESE
+
+NIKUSR="käyttäjätunnus"
+ENCODER="enkooderikone.niksula.hut.fi"
+
+# DO NOT EDIT THESE
+
+for FILE in "$@"; do
+    FTYPE=`echo "$FILE" | sed 's/\(.*\.\)\([^\.]*$\)/\2/'`
+
+    if [ $FTYPE != "m4a" -a $FTYPE != "mp3" -a $FTYPE != "MP3" -a $FTYPE != "ogg" ]; then
+        echo "File type '$FTYPE' is not supported."
+        exit 1
+    fi
+
+    echo "Sending $FILE..."
+
+    if [ $FTYPE = "m4a" ]; then
+        (mplayer -ao pcm:nowaveheader:fast:file=/dev/fd/9 "$FILE" 1> /dev/null 2> /dev/null) 9>&1 | ssh -qt -l $NIKUSR $ENCODER 'oggenc -Q -r - -o - | nc -w 1 tikradio.tt.hut.fi 5000'
+    else
+        cat "$FILE" | ssh -qt -l $NIKUSR $ENCODER nc -w 1 tikradio.tt.hut.fi 5000
+    fi
+
+    echo `date +'%d.%m.%y %H:%M:%S'` \(`whoami`\@`hostname`\) $FILE | ssh -qt -l $NIKUSR $ENCODER 'cat >> /u/users/tik/.tikradio-log'
+done
