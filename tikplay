@@ -15,28 +15,102 @@
 # - oggenc
 # - nc
 
-# EDIT THESE
 
-NIKUSR="käyttäjätunnus"
-ENCODER="enkooderikone.niksula.hut.fi"
+# source the configuration file
+if [ -f ~/.tikplayrc ]; then
+    . ~/.tikplayrc
+fi
 
-# DO NOT EDIT THESE
+# revert to defaults
+if [ "x$NIKSULA_USER" = "x" ]; then
+    NIKSULA_USER=`whoami`
+fi
 
-for FILE in "$@"; do
-    FTYPE=`echo "$FILE" | sed 's/\(.*\.\)\([^\.]*$\)/\2/'`
+if [ "x$REMOTE_HOST" = "x" ]; then
+    REMOTE_HOST="kekkonen.cs.hut.fi"
+fi
 
-    if [ $FTYPE != "m4a" -a $FTYPE != "mp3" -a $FTYPE != "MP3" -a $FTYPE != "ogg" ]; then
-        echo "File type '$FTYPE' is not supported."
-        exit 1
+if $DEBUG; then
+    echo "Using credentials for $NIKSULA_USER@$REMOTE_HOST."
+fi
+
+toupper()
+{
+    local char="$*"
+    out=`echo $char | tr [:lower:] [:upper:]`
+    local retval=$?
+    echo "$out"
+    unset out
+    unset char
+    return $retval
+}
+
+tolower()
+{
+    local char="$*"
+    out=`echo $char | tr [:upper:] [:lower:]`
+    local retval=$?
+    echo "$out"
+    unset out
+    unset char
+    return $retval
+}
+
+check_transcode()
+{
+    local intype="$*"
+    for type in $transcodable_filetypes; do
+	if [ "x$type" = "x$intype" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# The file types supported as-is by tikradio server
+native_filetypes="ogg mp3"
+
+# The file types supported by the transcode script
+transcodable_filetypes="m4a"
+
+# All file types supported by this script
+filetypes="$native_filetypes $transcodable_filetypes"
+
+for file in "$@"; do
+    if [ ! -f "$file" ]; then
+	echo "File $file not found. Skipping."
+	continue
     fi
 
-    echo "Sending $FILE..."
+    filetype=$(tolower `echo "$file" | sed 's/\(.*\.\)\([^\.]*$\)/\2/'`)
 
-    if [ $FTYPE = "m4a" ]; then
-        (mplayer -ao pcm:nowaveheader:fast:file=/dev/fd/9 "$FILE" 1> /dev/null 2> /dev/null) 9>&1 | ssh -qt -l $NIKUSR $ENCODER 'oggenc -Q -r - -o - | nc -w 1 tikradio.tt.hut.fi 5000'
+    supported_type=0
+
+    for type in $filetypes; do
+	if [ "$filetype" = "$type" ]; then
+	     supported_type=1
+             break
+	fi
+    done
+
+    if [ $supported_type -eq 0  ]; then
+	echo "File type $(toupper $filetype ) is not supported. Skipping."
+	continue
+    fi
+
+    if check_transcode $filetype; then
+	echo -n "Transcoding and sending $file... "
+        (mplayer -ao pcm:nowaveheader:fast:file=/dev/fd/9 "$file" \
+        1> /dev/null 2> /dev/null) 9>&1 | ssh -qt -l $NIKSULA_USER \
+        $REMOTE_HOST 'oggenc -Q -r - -o - | nc -w 1 tikradio.tt.hut.fi 5000'
+        echo "done."
     else
-        cat "$FILE" | ssh -qt -l $NIKUSR $ENCODER nc -w 1 tikradio.tt.hut.fi 5000
+	echo -n "Sending $file... "
+        cat "$file" \
+        | ssh -qt -l $NIKSULA_USER $REMOTE_HOST nc -w 1 tikradio.tt.hut.fi 5000
+	echo "done."
     fi
 
-    echo `date +'%d.%m.%y %H:%M:%S'` \(`whoami`\@`hostname`\) $FILE | ssh -qt -l $NIKUSR $ENCODER 'cat >> /u/users/tik/.tikradio-log'
+    echo `date +'%d.%m.%y %H:%M:%S'` \(`whoami`\@`hostname`\) $file |\
+    ssh -qt -l $NIKSULA_USER $REMOTE_HOST 'cat >> /u/users/tik/.tikradio-log'
 done

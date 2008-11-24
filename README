@@ -2,17 +2,36 @@ Tämä työkalu on tarkoitettu Tietokillan jäsenille, jotka haluavat soittaa
 kiltahuoneella musiikkia suoraan omalta koneelta. Jotta skripti toimisi oikein,
 on suositeltavaa, että käyttäjä käyttää tunnistuksessa ssh-avainta.
 
-Avaimen luonti:
+ASETUKSET
+
+Skripti lukee asetuksensa tiedostosta ~/.tikplayrc ja tuetut muuttujat ovat
+seuraavat:
+
+muuttuja	oletus
+--------------------------------
+DEBUG=		[false]
+NIKSULA_USER=	[`whoami`]
+REMOTE_HOST=	[ukk.cs.hut.fi]
+--------------------------------
+
+AVAIMEN LUONTI
+
+Skripti toimii parhaiten salasanattomalla avaimella.
+
+omalla koneella
+--------------------------------
 ssh-keygen
-<ei salasanaa, kun sellaista kysytään>
 ssh-copy-id user@niksula
+--------------------------------
 
 Jos ssh-copy-id jostain syystä puuttuu, voit ajaa seuraavat komennot käsin:
 
 omalla koneella
-
-$ scp .ssh/id_xxx.pub user@niksula:.
+--------------------------------
+scp .ssh/id_xxx.pub user@niksula:.
+--------------------------------
 
 niksulassa
-
+--------------------------------
 $ cat id_xxx.pub >> .ssh/authorized_keys2
+--------------------------------
